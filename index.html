@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bottle Shooter Game</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1a1a2e;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+            padding-top: 30px;
+            user-select: none;
+        }
+        canvas {
+            background-color: #f4dbd6; /* Light wall color */
+            border: 6px solid #8B4513; /* Wooden border */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            border-radius: 4px;
+            cursor: none; /* Hide default cursor to show custom crosshair */
+        }
+        h2 { margin: 5px; color: #4CAF50; font-size: 32px; letter-spacing: 1px; }
+        p { margin: 5px 0 15px 0; color: #ccc; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <h2>Bottle Shooter 🎯🍾</h2>
+    <p>Aim with Mouse | Click to Shoot | Break as many bottles as you can!</p>
+
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+    <script>
+        window.onload = function() {
+            const canvas = document.getElementById("gameCanvas");
+            const ctx = canvas.getContext("2d");
+
+            let score = 0;
+            let ammo = 30;
+            let gameOver = false;
+            let frames = 0;
+
+            // Crosshair position
+            let mouseX = canvas.width / 2;
+            let mouseY = canvas.height / 2;
+
+            const bottles = [];
+            const particles = [];
+
+            // Shelves Y positions
+            const shelves = [150, 320, 480];
+
+            // Track Mouse Position
+            canvas.addEventListener("mousemove", function(e) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+            });
+
+            // Shoot logic on Click
+            canvas.addEventListener("mousedown", function(e) {
+                if (gameOver) {
+                    resetGame();
+                    return;
+                }
+
+                if (ammo > 0) {
+                    ammo--;
+                    
+                    // Gun flash effect
+                    ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    // Check if a bottle is hit
+                    let hit = false;
+                    for (let i = bottles.length - 1; i >= 0; i--) {
+                        let b = bottles[i];
+                        // Collision check
+                        if (mouseX > b.x && mouseX < b.x + b.w && mouseY > b.y && mouseY < b.y + b.h) {
+                            score += 10;
+                            createGlassParticles(b.x + b.w/2, b.y + b.h/2);
+                            bottles.splice(i, 1); // Remove broken bottle
+                            hit = true;
+                            break; // Only break one bottle per shot
+                        }
+                    }
+
+                    // Game over if out of ammo
+                    if (ammo === 0) {
+                        setTimeout(() => gameOver = true, 500);
+                    }
+                }
+            });
+
+            // Create broken glass pieces
+            function createGlassParticles(x, y) {
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        life: 1.0
+                    });
+                }
+            }
+
+            // Spawn a new bottle
+            function spawnBottle() {
+                let direction = Math.random() > 0.5 ? 1 : -1; // Left to right OR Right to left
+                let shelfY = shelves[Math.floor(Math.random() * shelves.length)];
+                
+                // Bottle dimensions
+                let bWidth = 24;
+                let bHeight = 60;
+                
+                let startX = direction === 1 ? -50 : canvas.width + 50;
+                
+                bottles.push({
+                    x: startX,
+                    y: shelfY - bHeight, // Sit on the shelf
+                    w: bWidth,
+                    h: bHeight,
+                    speed: (2 + Math.random() * 3) * direction,
+                    color: Math.random() > 0.5 ? "#2ecc71" : "#e67e22" // Green or Brown bottle
+                });
+            }
+
+            function drawBackground() {
+                // Background wall
+                ctx.fillStyle = "#f4dbd6";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw wooden shelves
+                ctx.fillStyle = "#8B4513";
+                for (let i = 0; i < shelves.length; i++) {
+                    ctx.fillRect(0, shelves[i], canvas.width, 15);
+                    // Shelf shadow
+                    ctx.fillStyle = "rgba(0,0,0,0.2)";
+                    ctx.fillRect(0, shelves[i] + 15, canvas.width, 5);
+                    ctx.fillStyle = "#8B4513"; // Reset color
+                }
+            }
+
+            function drawCrosshair() {
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 2;
+                
+                // Circle
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, 15, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Lines
+                ctx.beginPath();
+                ctx.moveTo(mouseX - 20, mouseY);
+                ctx.lineTo(mouseX + 20, mouseY);
+                ctx.moveTo(mouseX, mouseY - 20);
+                ctx.lineTo(mouseX, mouseY + 20);
+                ctx.stroke();
+
+                // Center dot
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function resetGame() {
+                score = 0;
+                ammo = 30;
+                frames = 0;
+                bottles.length = 0;
+                particles.length = 0;
+                gameOver = false;
+                gameLoop();
+            }
+
+            function gameLoop() {
+                if (gameOver) {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 40px Arial";
+                    ctx.fillText("OUT OF AMMO!", 250, 200);
+                    ctx.fillStyle = "#4CAF50";
+                    ctx.font = "bold 30px Arial";
+                    ctx.fillText("Final Score: " + score, 300, 260);
+                    ctx.fillStyle = "#ccc";
+                    ctx.font = "20px Arial";
+                    ctx.fillText("Click anywhere to play again", 270, 320);
+                    return;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                drawBackground();
+
+                // Manage and Draw Bottles
+                if (frames % 40 === 0) {
+                    spawnBottle();
+                }
+
+                for (let i = 0; i < bottles.length; i++) {
+                    let b = bottles[i];
+                    b.x += b.speed;
+
+                    // Draw Bottle Body
+                    ctx.fillStyle = b.color;
+                    ctx.fillRect(b.x, b.y + 20, b.w, b.h - 20); // main body
+                    
+                    // Draw Bottle Neck
+                    ctx.fillRect(b.x + 6, b.y, b.w - 12, 20); // neck
+                    
+                    // Bottle highlight (Reflection)
+                    ctx.fillStyle = "rgba(255,255,255,0.4)";
+                    ctx.fillRect(b.x + 4, b.y + 25, 4, b.h - 30);
+
+                    // Remove bottle if it goes off screen
+                    if (b.x > canvas.width + 100 || b.x < -100) {
+                        bottles.splice(i, 1);
+                        i--;
+                    }
+                }
+
+                // Manage and Draw Particles (Broken Glass)
+                for (let i = 0; i < particles.length; i++) {
+                    let p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.5; // Gravity
+                    p.life -= 0.05; // Fade out
+
+                    if (p.life > 0) {
+                        ctx.fillStyle = `rgba(46, 204, 113, ${p.life})`;
+                        ctx.fillRect(p.x, p.y, 4, 4);
+                    } else {
+                        particles.splice(i, 1);
+                        i--;
+                    }
+                }
+
+                // UI Display (Score & Ammo)
+                ctx.fillStyle = "#111";
+                ctx.font = "bold 24px Arial";
+                ctx.fillText("SCORE: " + score, 20, 35);
+                
+                ctx.fillStyle = ammo > 5 ? "#d35400" : "#c0392b";
+                ctx.fillText("AMMO: " + ammo, canvas.width - 140, 35);
+
+                drawCrosshair();
+
+                frames++;
+                requestAnimationFrame(gameLoop);
+            }
+
+            // Start Game
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
